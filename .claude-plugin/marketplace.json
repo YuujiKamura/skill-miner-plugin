@@ -13,7 +13,7 @@
       "author": {
         "name": "yuuji"
       },
-      "source": ".",
+      "source": "./plugins/skill-miner",
       "category": "productivity"
     }
   ]
