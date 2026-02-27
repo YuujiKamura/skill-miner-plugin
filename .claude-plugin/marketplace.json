@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "skill-miner-marketplace",
+  "description": "skill-miner plugin marketplace",
+  "owner": {
+    "name": "yuuji"
+  },
+  "plugins": [
+    {
+      "name": "skill-miner",
+      "description": "Auto-extract skills from Claude Code conversation history",
+      "version": "0.1.0",
+      "author": {
+        "name": "yuuji"
+      },
+      "source": ".",
+      "category": "productivity"
+    }
+  ]
+}
