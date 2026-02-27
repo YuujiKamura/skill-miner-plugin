@@ -1,0 +1,11 @@
+{
+  "name": "skill-miner",
+  "version": "0.1.0",
+  "description": "Auto-extract skills from Claude Code conversation history",
+  "author": {
+    "name": "yuuji"
+  },
+  "repository": "https://github.com/YuujiKamura/skill-miner",
+  "license": "MIT",
+  "keywords": ["skills", "knowledge-extraction", "mining", "automation"]
+}

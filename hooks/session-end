@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# SessionEnd hook: auto-mine skills from recent conversations
+# Runs at session end. Errors are logged silently (never blocks session exit).
+
+set -uo pipefail
+
+LOG_DIR="${HOME}/.claude/skill-miner-plugin"
+LOG_FILE="${LOG_DIR}/last-run.log"
+SKILL_MINER_DIR="${HOME}/skill-miner"
+BINARY="${SKILL_MINER_DIR}/target/debug/skill-miner.exe"
+
+# Ensure log directory exists
+mkdir -p "${LOG_DIR}"
+
+# Timestamp
+echo "=== skill-miner session-end: $(date -Iseconds) ===" > "${LOG_FILE}"
+
+# Use compiled binary if available, otherwise cargo run
+if [ -x "${BINARY}" ]; then
+    CMD=("${BINARY}" mine --max-days 1 --dry-run)
+else
+    # Check if skill-miner project exists
+    if [ ! -f "${SKILL_MINER_DIR}/Cargo.toml" ]; then
+        echo "ERROR: skill-miner not found at ${SKILL_MINER_DIR}" >> "${LOG_FILE}"
+        exit 0
+    fi
+    CMD=(cargo run --manifest-path "${SKILL_MINER_DIR}/Cargo.toml" -- mine --max-days 1 --dry-run)
+fi
+
+# Run mining with timeout (mining involves AI calls; cap at 5 minutes)
+TIMEOUT_SEC=300
+OUTPUT=$(timeout "${TIMEOUT_SEC}" "${CMD[@]}" 2>&1) || true
+echo "${OUTPUT}" >> "${LOG_FILE}"
+
+# Count new skills from output (lines matching "[NEW]" or "[UPDATE]")
+NEW_COUNT=$(echo "${OUTPUT}" | grep -c '\[NEW\]' || true)
+UPDATE_COUNT=$(echo "${OUTPUT}" | grep -c '\[UPDATE\]' || true)
+# Ensure numeric (grep -c may fail under pipefail)
+NEW_COUNT=${NEW_COUNT:-0}
+UPDATE_COUNT=${UPDATE_COUNT:-0}
+TOTAL=$((NEW_COUNT + UPDATE_COUNT))
+
+echo "--- Summary: new=${NEW_COUNT} update=${UPDATE_COUNT} total=${TOTAL} ---" >> "${LOG_FILE}"
+
+# Output result as JSON for hook system
+cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionEnd",
+    "additionalContext": "skill-miner: ${TOTAL} skills found (${NEW_COUNT} new, ${UPDATE_COUNT} updates). Log: ~/.claude/skill-miner-plugin/last-run.log"
+  }
+}
+EOF
+
+exit 0
