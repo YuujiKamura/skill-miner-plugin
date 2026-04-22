@@ -7,7 +7,8 @@ set -uo pipefail
 LOG_DIR="${HOME}/.claude/skill-miner-plugin"
 LOG_FILE="${LOG_DIR}/last-run.log"
 SKILL_MINER_DIR="${HOME}/skill-miner"
-BINARY="${SKILL_MINER_DIR}/target/debug/skill-miner.exe"
+RELEASE_BINARY="${SKILL_MINER_DIR}/target/release/skill-miner.exe"
+DEBUG_BINARY="${SKILL_MINER_DIR}/target/debug/skill-miner.exe"
 
 # Ensure log directory exists
 mkdir -p "${LOG_DIR}"
@@ -15,20 +16,23 @@ mkdir -p "${LOG_DIR}"
 # Timestamp
 echo "=== skill-miner session-end: $(date -Iseconds) ===" > "${LOG_FILE}"
 
-# Use compiled binary if available, otherwise cargo run
-if [ -x "${BINARY}" ]; then
-    CMD=("${BINARY}" mine --max-days 1 --dry-run)
+# Prefer release > debug > cargo run
+if [ -x "${RELEASE_BINARY}" ]; then
+    CMD=("${RELEASE_BINARY}" mine --days 1)
+elif [ -x "${DEBUG_BINARY}" ]; then
+    CMD=("${DEBUG_BINARY}" mine --days 1)
 else
     # Check if skill-miner project exists
     if [ ! -f "${SKILL_MINER_DIR}/Cargo.toml" ]; then
         echo "ERROR: skill-miner not found at ${SKILL_MINER_DIR}" >> "${LOG_FILE}"
         exit 0
     fi
-    CMD=(cargo run --manifest-path "${SKILL_MINER_DIR}/Cargo.toml" -- mine --max-days 1 --dry-run)
+    CMD=(cargo run --manifest-path "${SKILL_MINER_DIR}/Cargo.toml" -- mine --days 1)
 fi
 
-# Run mining with timeout (mining involves AI calls; cap at 5 minutes)
-TIMEOUT_SEC=300
+# Run mining with timeout. Full 6-lens mine takes ~15-20 min (measured 2026-04-22
+# at 17min on --days 1). Cap at 25 min to allow slack while still bounding runaway.
+TIMEOUT_SEC=1500
 OUTPUT=$(timeout "${TIMEOUT_SEC}" "${CMD[@]}" 2>&1) || true
 echo "${OUTPUT}" >> "${LOG_FILE}"
 
